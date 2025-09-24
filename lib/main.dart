@@ -9,8 +9,17 @@ import 'theme_notifier.dart';
 import 'splash_screen.dart';
 import 'skill_page.dart';
 import 'contact_page.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+// - 🎯 Próximos pasos después de configurar:
+  // 1. Reemplazar login simulado por Firebase Auth
+  // 2.  Guardar proyectos en Firestore
+  // 3. Subir imágenes a Firebase Storage
+  // 4. Sincronización automática
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();  // Inicializar Firebase
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),

@@ -22,3 +22,12 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// android/build.gradle - Agregar al final del archivo
+buildscript {
+    dependencies {
+        classpath 'com.google.gms:google-services:4.3.15'
+        implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+        implementation("com.google.firebase:firebase-analytics")
+    }
+}
