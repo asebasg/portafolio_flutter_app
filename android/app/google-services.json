@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "535815520030",
+    "project_id": "mi-portafolio-flutter",
+    "storage_bucket": "mi-portafolio-flutter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:535815520030:android:ec0ae4bbe0c2ea725fd30f",
+        "android_client_info": {
+          "package_name": "com.ejemplo.portafolio_flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM-9B4wiL_uNizTDb63SArvhEON-k69OU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
