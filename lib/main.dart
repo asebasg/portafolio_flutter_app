@@ -16,9 +16,26 @@ import 'package:firebase_core/firebase_core.dart';
   // 2.  Guardar proyectos en Firestore
   // 3. Subir imágenes a Firebase Storage
   // 4. Sincronización automática
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_core/firebase_core.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();  // Inicializar Firebase
+
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyAM-9B4wiL_uNizTDb63SArvhEON-k69OU",
+        authDomain: "mi-portafolio-flutter.firebaseapp.com",
+        projectId: "mi-portafolio-flutter",
+        storageBucket: "mi-portafolio-flutter.firebasestorage.app",
+        messagingSenderId: "535815520030",
+        appId: "1:535815520030:web:ec0ae4bbe0c2ea725fd30f",
+      ),
+    );
+  } else {
+    await Firebase.initializeApp();
+  }
   
   runApp(
     ChangeNotifierProvider(
