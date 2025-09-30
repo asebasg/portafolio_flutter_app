@@ -51,6 +51,7 @@ dependencies:
   intl: ^0.18.0 # Para fechas
   flutter_local_notifications: ^17.2.2
   timezone: ^0.9.3
+  url_launcher: ^6.3.0 # Para abrir enlaces
 
 dev_dependencies:
   flutter_test:
