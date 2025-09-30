@@ -162,7 +162,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Proyectos'),
+        title: const Text('Tus proyectos'),
         actions: [
           IconButton(
             onPressed: _deleteAllProjects,

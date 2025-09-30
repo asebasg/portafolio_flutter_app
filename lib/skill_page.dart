@@ -153,7 +153,7 @@ class _SkillsPageState extends State<SkillsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Habilidades'),
+        title: const Text('Tus habilidades'),
         actions: [
           IconButton(
             onPressed: _deleteAllSkills,
