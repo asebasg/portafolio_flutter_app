@@ -107,6 +107,19 @@ class FirestoreService {
     });
   }
 
+  // Actualizar habilidad
+  Future<void> updateSkill({
+    required String skillId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('skills')
+        .doc(skillId)
+        .update(data);
+  }
+
   // Eliminar habilidad
   Future<void> deleteSkill(String skillId) async {
     await _firestore
@@ -115,6 +128,20 @@ class FirestoreService {
         .collection('skills')
         .doc(skillId)
         .delete();
+  }
+
+  // Eliminar todas las habilidades
+  Future<void> deleteAllSkills() async {
+    final batch = _firestore.batch();
+    final querySnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('skills')
+        .get();
+    for (var doc in querySnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 
   // ========== PERFIL ==========
