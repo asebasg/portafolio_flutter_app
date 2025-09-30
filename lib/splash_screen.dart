@@ -98,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen>
                     
                     // Título
                     const Text(
-                      "Mi Portafolio",
+                      "PortApp",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 32,
@@ -110,7 +110,7 @@ class _SplashScreenState extends State<SplashScreen>
                     
                     // Subtítulo
                     const Text(
-                      "Desarrollador Flutter",
+                      "Desarrollado por Sebastian Ospina",
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 18,

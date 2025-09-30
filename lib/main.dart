@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Mi Portafolio Personal',
+      title: 'PortApp',
       theme: ThemeData(
         brightness: Brightness.light,
         primarySwatch: Colors.blue,
