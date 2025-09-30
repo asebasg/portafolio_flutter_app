@@ -52,6 +52,7 @@ dependencies:
   flutter_local_notifications: ^17.2.2
   timezone: ^0.9.3
   url_launcher: ^6.3.0 # Para abrir enlaces
+  cached_network_image: ^3.2.3
 
 dev_dependencies:
   flutter_test:

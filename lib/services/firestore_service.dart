@@ -1,6 +1,8 @@
 // lib/services/firestore_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -210,5 +212,26 @@ class FirestoreService {
         .collection('info')
         .doc('contact')
         .delete();
+  }
+
+  // Subir imagen de perfil a Firebase Storage y devolver la URL
+  Future<String> uploadProfileImage(XFile image) async {
+    if (userId.isEmpty) throw Exception('Usuario no autenticado');
+    final bytes = await image.readAsBytes();
+    final path = 'users/$userId/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final ref = FirebaseStorage.instance.ref().child(path);
+    final meta = SettableMetadata(contentType: 'image/jpeg');
+    await ref.putData(bytes, meta);
+    final url = await ref.getDownloadURL();
+    return url;
+  }
+
+  // Guardar solo la URL de la imagen en el documento del usuario
+  Future<void> setProfileImageUrl(String imageUrl) async {
+    if (userId.isEmpty) throw Exception('Usuario no autenticado');
+    await _firestore.collection('users').doc(userId).set({
+      'imageUrl': imageUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

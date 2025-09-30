@@ -12,12 +12,8 @@ import 'splash_screen.dart';
 import 'skill_page.dart';
 import 'contact_page.dart';
 import 'services/firebase_auth_service.dart';
-
-// - 🎯 Próximos pasos después de configurar:
-// ~ 1. Reemplazar login simulado por Firebase Auth
-// 2.  Guardar proyectos en Firestore
-// 3. Subir imágenes a Firebase Storage
-// 4. Sincronización automática
+import 'services/firestore_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -108,6 +104,14 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (mounted) {
+        // persist email and name locally
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('email', email);
+        final displayName = _authService.currentUser?.displayName;
+        if (displayName != null && displayName.isNotEmpty) {
+          await prefs.setString('name', displayName);
+        }
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -256,10 +260,15 @@ class _RegisterPageState extends State<RegisterPage> {
         displayName: name,
       );
 
-      setState(() {
-        _message = "✅ Usuario registrado con éxito";
-        _isLoading = false;
-      });
+        // save email and name locally
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('email', email);
+        await prefs.setString('name', name);
+
+        setState(() {
+          _message = "✅ Usuario registrado con éxito";
+          _isLoading = false;
+        });
 
       // Volver al login después de 1.5 segundos
       Future.delayed(const Duration(milliseconds: 1500), () {
@@ -401,10 +410,23 @@ class _HomePageState extends State<HomePage> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      setState(() {
-        imagePath = pickedFile.path;
-      });
-      _saveProfile("imagePath", pickedFile.path);
+      // upload to Firebase Storage and save URL
+      try {
+        final firestore = FirestoreService();
+        final url = await firestore.uploadProfileImage(pickedFile);
+        await firestore.setProfileImageUrl(url);
+        // persist the image url locally so drawer/profile can read it
+        await _saveProfile("imagePath", url);
+        if (mounted) {
+          setState(() {
+            imagePath = url;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error subiendo imagen: $e')));
+        }
+      }
     }
   }
 
@@ -428,8 +450,19 @@ class _HomePageState extends State<HomePage> {
           ElevatedButton(
             onPressed: () {
               final newValue = controller.text;
-              onSave(newValue);
-              _saveProfile(key, newValue);
+              if (key == 'name') {
+                // If user leaves name empty, keep the existing registered name
+                final finalName = newValue.trim().isEmpty ? name : newValue;
+                onSave(finalName);
+                _saveProfile(key, finalName);
+                try {
+                  final authService = FirebaseAuthService();
+                  authService.updateDisplayName(finalName);
+                } catch (_) {}
+              } else {
+                onSave(newValue);
+                _saveProfile(key, newValue);
+              }
               Navigator.pop(context);
             },
             child: const Text("Guardar"),
@@ -450,13 +483,23 @@ class _HomePageState extends State<HomePage> {
             Center(
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundImage: imagePath != null
-                        ? FileImage(File(imagePath!))
-                        : const AssetImage("assets/avatar.png")
-                              as ImageProvider,
-                  ),
+                  Builder(builder: (context) {
+                    ImageProvider? avatarProvider;
+                    if (imagePath != null && imagePath!.isNotEmpty) {
+                      if (imagePath!.startsWith('http')) {
+                        avatarProvider = NetworkImage(imagePath!);
+                      } else {
+                        avatarProvider = FileImage(File(imagePath!));
+                      }
+                    } else {
+                      avatarProvider = const AssetImage("assets/avatar.png");
+                    }
+
+                    return CircleAvatar(
+                      radius: 60,
+                      backgroundImage: avatarProvider,
+                    );
+                  }),
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -487,21 +530,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.email),
-                title: Text(email),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _editField(
-                    "Correo",
-                    email,
-                    (v) => setState(() => email = v),
-                    "email",
-                  ),
-                ),
-              ),
-            ),
+            // email is displayed in drawer/header; editing email from profile removed
             Card(
               child: ListTile(
                 leading: const Icon(Icons.info),
@@ -538,6 +567,9 @@ class _DashboardPageState extends State<DashboardPage> {
   int _selectedBottomIndex = 0;
   late List<Widget> _bottomPages;
   final List<String> _pageTitles = ["Proyectos", "Habilidades", "Contacto"];
+  String _drawerName = '';
+  String _drawerEmail = '';
+  String? _drawerImagePath;
 
   @override
   void initState() {
@@ -547,6 +579,16 @@ class _DashboardPageState extends State<DashboardPage> {
       const SkillsPage(),
       const ContactPage(),
     ];
+    _loadDrawerInfo();
+  }
+
+  Future<void> _loadDrawerInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _drawerName = prefs.getString('name') ?? widget.username;
+      _drawerEmail = prefs.getString('email') ?? 'mi.portafolio@ejemplo.com';
+      _drawerImagePath = prefs.getString('imagePath');
+    });
   }
 
   void _onBottomItemTapped(int index) {
@@ -556,12 +598,13 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _goToProfile() {
+    // Navigate to profile and refresh when returning so drawer/header show updated info
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => HomePage(username: widget.username),
       ),
-    );
+    ).then((_) => setState(() {}));
   }
 
   @override
@@ -578,12 +621,16 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             UserAccountsDrawerHeader(
               decoration: const BoxDecoration(color: Color(0xFF1E88E5)),
-              accountName: Text(widget.username),
-              accountEmail: const Text("mi.portafolio@ejemplo.com"),
-              currentAccountPicture: const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, size: 40, color: Color(0xFF1E88E5)),
-              ),
+              accountName: Text(_drawerName.isNotEmpty ? _drawerName : widget.username),
+              accountEmail: Text(_drawerEmail.isNotEmpty ? _drawerEmail : 'mi.portafolio@ejemplo.com'),
+              currentAccountPicture: _drawerImagePath != null && _drawerImagePath!.isNotEmpty
+                  ? (_drawerImagePath!.startsWith('http')
+                      ? CircleAvatar(backgroundImage: CachedNetworkImageProvider(_drawerImagePath!))
+                      : CircleAvatar(backgroundImage: FileImage(File(_drawerImagePath!))))
+                  : const CircleAvatar(
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, size: 40, color: Color(0xFF1E88E5)),
+                    ),
             ),
             ListTile(
               leading: const Icon(Icons.person),
