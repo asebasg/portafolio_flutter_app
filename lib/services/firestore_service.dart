@@ -1,0 +1,163 @@
+// lib/services/firestore_service.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class FirestoreService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  String get userId => _auth.currentUser?.uid ?? '';
+
+  // ========== PROYECTOS ==========
+
+  // Obtener proyectos del usuario actual
+  Stream<QuerySnapshot> getProjects() {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('projects')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  // Agregar proyecto
+  Future<void> addProject({
+    required String title,
+    required String description,
+    required String technologies,
+    required String status,
+    String? imageUrl,
+    String? link,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('projects')
+        .add({
+          'title': title,
+          'description': description,
+          'technologies': technologies,
+          'status': status,
+          'imageUrl': imageUrl,
+          'link': link,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+  }
+
+  // Actualizar proyecto
+  Future<void> updateProject({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('projects')
+        .doc(projectId)
+        .update(data);
+  }
+
+  // Eliminar proyecto
+  Future<void> deleteProject(String projectId) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('projects')
+        .doc(projectId)
+        .delete();
+  }
+
+  // ========== HABILIDADES ==========
+
+  // Obtener habilidades
+  Stream<QuerySnapshot> getSkills() {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('skills')
+        .orderBy('category')
+        .snapshots();
+  }
+
+  // Agregar habilidad
+  Future<void> addSkill({
+    required String name,
+    required String category,
+    required int level,
+  }) async {
+    await _firestore.collection('users').doc(userId).collection('skills').add({
+      'name': name,
+      'category': category,
+      'level': level,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Eliminar habilidad
+  Future<void> deleteSkill(String skillId) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('skills')
+        .doc(skillId)
+        .delete();
+  }
+
+  // ========== PERFIL ==========
+
+  // Obtener datos del perfil
+  Future<DocumentSnapshot> getProfile() {
+    return _firestore.collection('users').doc(userId).get();
+  }
+
+  // Actualizar perfil
+  Future<void> updateProfile({
+    required String name,
+    required String email,
+    required String bio,
+    String? imageUrl,
+  }) async {
+    await _firestore.collection('users').doc(userId).set({
+      'name': name,
+      'email': email,
+      'bio': bio,
+      'imageUrl': imageUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // ========== CONTACTO ==========
+
+  // Obtener información de contacto
+  Future<DocumentSnapshot> getContact() {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('info')
+        .doc('contact')
+        .get();
+  }
+
+  // Actualizar contacto
+  Future<void> updateContact({
+    required String phone,
+    required String location,
+    required String linkedin,
+    required String github,
+    required String website,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('info')
+        .doc('contact')
+        .set({
+          'phone': phone,
+          'location': location,
+          'linkedin': linkedin,
+          'github': github,
+          'website': website,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+  }
+}

@@ -1,23 +1,24 @@
-//  lib/main.dart
+// lib/main.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_core/firebase_core.dart';
 import 'projects_page.dart';
 import 'theme_notifier.dart';
 import 'splash_screen.dart';
 import 'skill_page.dart';
 import 'contact_page.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'services/firebase_auth_service.dart';
+import 'services/firestore_service.dart';
 
 // - 🎯 Próximos pasos después de configurar:
-  // 1. Reemplazar login simulado por Firebase Auth
-  // 2.  Guardar proyectos en Firestore
-  // 3. Subir imágenes a Firebase Storage
-  // 4. Sincronización automática
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_core/firebase_core.dart';
+// ~ 1. Reemplazar login simulado por Firebase Auth
+// 2.  Guardar proyectos en Firestore
+// 3. Subir imágenes a Firebase Storage
+// 4. Sincronización automática
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ void main() async {
   } else {
     await Firebase.initializeApp();
   }
-  
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
@@ -69,7 +70,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// * Pagina de registro/login
+// ========== LOGIN PAGE CON FIREBASE ==========
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -78,29 +79,49 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _userController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
-
-  // Simulación de "base de datos" con un Map
-  final Map<String, String> _users = {"a": "a", "sebastian": "1234"};
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   String _message = "";
+  bool _isLoading = false;
 
-  void _login() {
-    String user = _userController.text.trim();
+  Future<void> _login() async {
+    String email = _emailController.text.trim();
     String pass = _passController.text.trim();
 
-    if (_users.containsKey(user) && _users[user] == pass) {
+    if (email.isEmpty || pass.isEmpty) {
       setState(() {
-        _message = "✅ Bienvenido, $user";
+        _message = "❗ Completa todos los campos";
       });
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => DashboardPage(username: user)),
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _message = "";
+    });
+
+    try {
+      await _authService.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
       );
-    } else {
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DashboardPage(
+              username: _authService.currentUser?.displayName ?? email,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
       setState(() {
-        _message = "❌ Usuario o contraseña incorrectos";
+        _message = "❌ $e";
+        _isLoading = false;
       });
     }
   }
@@ -108,11 +129,8 @@ class _LoginPageState extends State<LoginPage> {
   void _goToRegister() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => RegisterPage(users: _users)),
-    ).then((_) {
-      // Refrescar la pantalla al volver
-      setState(() {});
-    });
+      MaterialPageRoute(builder: (context) => const RegisterPage()),
+    );
   }
 
   @override
@@ -124,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Icon(Icons.person_4_rounded, color: Colors.white),
             SizedBox(width: 8),
-            Text("Mi Portafolio", style: TextStyle(color: Colors.white)),
+            Text("PortApp", style: TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -134,10 +152,12 @@ class _LoginPageState extends State<LoginPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
-              controller: _userController,
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
-                labelText: "Usuario",
+                labelText: "Email",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
               ),
             ),
             const SizedBox(height: 20),
@@ -147,42 +167,48 @@ class _LoginPageState extends State<LoginPage> {
               decoration: const InputDecoration(
                 labelText: "Contraseña",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  margin: const EdgeInsets.all(3.0),
-                  child: ElevatedButton(
-                    onPressed: _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E88E5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E88E5),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "Ingresar",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
-                    ),
-                    child: const Text(
-                      "Ingresar",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  margin: const EdgeInsets.all(3.0),
-                  child: TextButton(
-                    onPressed: _goToRegister,
-                    child: const Text("Crear cuenta"),
-                  ),
-                ),
-              ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: _goToRegister,
+              child: const Text("¿No tienes cuenta? Regístrate"),
             ),
             const SizedBox(height: 20),
-            Text(
-              _message,
-              style: const TextStyle(fontSize: 16, color: Colors.red),
-            ),
+            if (_message.isNotEmpty)
+              Text(
+                _message,
+                style: const TextStyle(fontSize: 14, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
           ],
         ),
       ),
@@ -190,45 +216,62 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// * Pagina de registro
+// ========== REGISTER PAGE CON FIREBASE ==========
 class RegisterPage extends StatefulWidget {
-  final Map<String, String> users;
-
-  const RegisterPage({super.key, required this.users});
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final TextEditingController _newUserController = TextEditingController();
-  final TextEditingController _newPassController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passController = TextEditingController();
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   String _message = "";
+  bool _isLoading = false;
 
-  void _register() {
-    String user = _newUserController.text.trim();
-    String pass = _newPassController.text.trim();
+  Future<void> _register() async {
+    String name = _nameController.text.trim();
+    String email = _emailController.text.trim();
+    String pass = _passController.text.trim();
 
-    if (user.isEmpty || pass.isEmpty) {
+    if (name.isEmpty || email.isEmpty || pass.isEmpty) {
       setState(() {
-        _message = "❗ Los campos no pueden estar vacíos";
+        _message = "❗ Completa todos los campos";
       });
       return;
     }
-    if (widget.users.containsKey(user)) {
-      setState(() {
-        _message = "❗ El usuario ya existe";
-      });
-    } else {
-      widget.users[user] = pass;
+
+    setState(() {
+      _isLoading = true;
+      _message = "";
+    });
+
+    try {
+      await _authService.signUpWithEmailAndPassword(
+        email: email,
+        password: pass,
+        displayName: name,
+      );
+
       setState(() {
         _message = "✅ Usuario registrado con éxito";
+        _isLoading = false;
       });
 
-      // Volver al login después de un segundo
-      Future.delayed(const Duration(seconds: 1), () {
-        Navigator.pop(context);
+      // Volver al login después de 1.5 segundos
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _message = "❌ $e";
+        _isLoading = false;
       });
     }
   }
@@ -239,6 +282,7 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(
         title: const Text("Registro"),
         backgroundColor: const Color(0xFF1E88E5),
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -246,37 +290,70 @@ class _RegisterPageState extends State<RegisterPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
-              controller: _newUserController,
+              controller: _nameController,
               decoration: const InputDecoration(
-                labelText: "Nuevo usuario",
+                labelText: "Nombre completo",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 15),
             TextField(
-              controller: _newPassController,
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: "Email",
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _passController,
               obscureText: true,
               decoration: const InputDecoration(
-                labelText: "Nueva contraseña",
+                labelText: "Contraseña (mínimo 6 caracteres)",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _register,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E88E5),
-              ),
-              child: const Text(
-                "Registrar",
-                style: TextStyle(color: Colors.white),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _register,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E88E5),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "Registrar",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              _message,
-              style: const TextStyle(fontSize: 16, color: Colors.green),
-            ),
+            if (_message.isNotEmpty)
+              Text(
+                _message,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _message.contains("✅") ? Colors.green : Colors.red,
+                ),
+                textAlign: TextAlign.center,
+              ),
           ],
         ),
       ),
@@ -284,7 +361,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 }
 
-// * Pagina de inicio (home)
+// ========== HOME PAGE (PERFIL) ==========
 class HomePage extends StatefulWidget {
   final String username;
 
@@ -448,7 +525,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// * Dashboard page
+// ========== DASHBOARD PAGE ==========
 class DashboardPage extends StatefulWidget {
   final String username;
 
@@ -458,23 +535,18 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-// * Menu lateral de navegacion
 class _DashboardPageState extends State<DashboardPage> {
-  int _selectedBottomIndex = 0; // Para el menú inferior
-
-  // Páginas del menú inferior
+  int _selectedBottomIndex = 0;
   late List<Widget> _bottomPages;
-
-  // Títulos para el AppBar según la página seleccionada
   final List<String> _pageTitles = ["Proyectos", "Habilidades", "Contacto"];
 
   @override
   void initState() {
     super.initState();
     _bottomPages = [
-      const ProjectsPage(), // Proyectos
-      const SkillsPage(), // Habilidades
-      const ContactPage(), // Contacto
+      const ProjectsPage(),
+      const SkillsPage(),
+      const ContactPage(),
     ];
   }
 
@@ -501,8 +573,6 @@ class _DashboardPageState extends State<DashboardPage> {
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
       ),
-
-      // ✅ DRAWER LATERAL: Solo perfil, configuración y logout
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -516,20 +586,15 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Icon(Icons.person, size: 40, color: Color(0xFF1E88E5)),
               ),
             ),
-
-            // Ir al perfil
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text("Ver Perfil"),
               onTap: () {
-                Navigator.pop(context); // Cerrar drawer
+                Navigator.pop(context);
                 _goToProfile();
               },
             ),
-
             const Divider(),
-
-            // Modo oscuro
             Consumer<ThemeNotifier>(
               builder: (context, themeNotifier, child) {
                 return SwitchListTile(
@@ -542,32 +607,30 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
             ),
-
             const Divider(),
-
-            // Cerrar sesión
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text(
                 "Cerrar sesión",
                 style: TextStyle(color: Colors.red),
               ),
-              onTap: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                  (route) => false,
-                );
+              onTap: () async {
+                final authService = FirebaseAuthService();
+                await authService.signOut();
+
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                }
               },
             ),
           ],
         ),
       ),
-
-      // ✅ CONTENIDO PRINCIPAL
       body: _bottomPages[_selectedBottomIndex],
-
-      // ✅ MENÚ INFERIOR: Proyectos, Habilidades, Contacto
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedBottomIndex,
         onDestinationSelected: _onBottomItemTapped,
