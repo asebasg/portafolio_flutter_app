@@ -201,4 +201,14 @@ class FirestoreService {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
   }
+
+  // Eliminar contacto
+  Future<void> deleteContact() async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('info')
+        .doc('contact')
+        .delete();
+  }
 }

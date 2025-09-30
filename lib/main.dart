@@ -12,7 +12,6 @@ import 'splash_screen.dart';
 import 'skill_page.dart';
 import 'contact_page.dart';
 import 'services/firebase_auth_service.dart';
-import 'services/firestore_service.dart';
 
 // - 🎯 Próximos pasos después de configurar:
 // ~ 1. Reemplazar login simulado por Firebase Auth
