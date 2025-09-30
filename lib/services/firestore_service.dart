@@ -67,6 +67,20 @@ class FirestoreService {
         .delete();
   }
 
+  // Eliminar todos los proyectos
+  Future<void> deleteAllProjects() async {
+    final batch = _firestore.batch();
+    final querySnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('projects')
+        .get();
+    for (var doc in querySnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   // ========== HABILIDADES ==========
 
   // Obtener habilidades
