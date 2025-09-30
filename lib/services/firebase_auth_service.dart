@@ -53,6 +53,15 @@ class FirebaseAuthService {
     await _auth.signOut();
   }
 
+  // Actualizar displayName del usuario
+  Future<void> updateDisplayName(String displayName) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.updateDisplayName(displayName);
+      await user.reload();
+    }
+  }
+
   // Manejar errores de autenticación
   String _handleAuthError(FirebaseAuthException e) {
     switch (e.code) {
